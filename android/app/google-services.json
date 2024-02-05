@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "248350173499",
+    "project_id": "exam-planner-e76c9",
+    "storage_bucket": "exam-planner-e76c9.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248350173499:android:f6cfdacf97cc6ff1bb6f1e",
+        "android_client_info": {
+          "package_name": "com.example.exam_planner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTjrYmrRBOSKumrw9WiVsZAUQF80u7sww"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
