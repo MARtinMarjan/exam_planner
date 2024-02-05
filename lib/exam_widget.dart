@@ -19,8 +19,8 @@ class ExamWidgetState extends State<ExamWidget> {
     final DateTime? datePicked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
+      firstDate: DateTime(2022),
+      lastDate: DateTime(2200),
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.light().copyWith(

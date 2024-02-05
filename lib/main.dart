@@ -1,19 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'exam.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
+import 'calendar_widget';
 import 'exam_widget.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'exam.dart';
+import 'notification_controller.dart';
 import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await AwesomeNotifications().initialize(
+    null,
+    [
+      NotificationChannel(
+        channelGroupKey: "basic_channel_group",
+        channelKey: "basic_channel",
+        channelName: "basic_notif",
+        channelDescription: "basic notification channel",
+      )
+    ],
+    channelGroups: [
+      NotificationChannelGroup(
+        channelGroupKey: "basic_channel_group",
+        channelGroupName: "basic_group",
+      )
+    ],
+  );
+
+  bool isAllowedToSendNotification =
+      await AwesomeNotifications().isNotificationAllowed();
+
+  if (!isAllowedToSendNotification) {
+    AwesomeNotifications().requestPermissionToSendNotifications();
+  }
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key});
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +56,13 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class MainListScreen extends StatefulWidget {
+  const MainListScreen({Key? key});
+
+  @override
+  MainListScreenState createState() => MainListScreenState();
+}
+
 class MainListScreenState extends State<MainListScreen> {
   final List<Exam> exams = [
     Exam(course: 'BMS', timestamp: DateTime.now()),
@@ -37,13 +72,37 @@ class MainListScreenState extends State<MainListScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    AwesomeNotifications().setListeners(
+      onActionReceivedMethod: NotificationController.onActionReceiveMethod,
+      onDismissActionReceivedMethod:
+          NotificationController.onDismissActionReceiveMethod,
+      onNotificationCreatedMethod:
+          NotificationController.onNotificationCreateMethod,
+      onNotificationDisplayedMethod:
+          NotificationController.onNotificationDisplayed,
+    );
+    _scheduleNotificationsForExistingExams();
+  }
+
+  void _scheduleNotificationsForExistingExams() {
+    for (int i = 0; i < exams.length; i++) {
+      _scheduleNotification(exams[i]);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     exams.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ispiti'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: _openCalendar,
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => FirebaseAuth.instance.currentUser != null
@@ -51,7 +110,7 @@ class MainListScreenState extends State<MainListScreen> {
                 : _navigateToSignInPage(context),
           ),
           IconButton(
-            icon: const Icon(Icons.exit_to_app),
+            icon: const Icon(Icons.login),
             onPressed: _signOut,
           ),
         ],
@@ -67,11 +126,9 @@ class MainListScreenState extends State<MainListScreen> {
           final course = exams[index].course;
           final timestamp = exams[index].timestamp;
 
-          final formattedDateTime = DateFormat('yMMMd H:mm').format(timestamp);
-
           return Container(
             decoration: BoxDecoration(
-              color: Color.fromARGB(255, 228, 221, 171),
+              color: const Color.fromARGB(255, 228, 221, 171),
               borderRadius: BorderRadius.circular(12.0),
               boxShadow: [
                 BoxShadow(
@@ -82,27 +139,25 @@ class MainListScreenState extends State<MainListScreen> {
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
                     course,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    formattedDateTime,
+                  const SizedBox(height: 8.0),
+                  Text(
+                    formattedDateTime(timestamp),
                     style: const TextStyle(color: Colors.grey),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -110,14 +165,17 @@ class MainListScreenState extends State<MainListScreen> {
     );
   }
 
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
+  String formattedDateTime(DateTime timestamp) {
+    return DateFormat.yMMMd().add_Hm().format(timestamp);
   }
 
-  void _navigateToSignInPage(BuildContext context) {
-    Future.delayed(Duration.zero, () {
-      Navigator.pushReplacementNamed(context, '/login');
-    });
+  void _openCalendar() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CalendarWidget(exams: exams),
+      ),
+    );
   }
 
   Future<void> _addExamFunction(BuildContext context) async {
@@ -138,15 +196,39 @@ class MainListScreenState extends State<MainListScreen> {
   void _addExam(Exam exam) {
     setState(() {
       exams.add(exam);
+      _scheduleNotification(exam);
     });
   }
-}
 
-class MainListScreen extends StatefulWidget {
-  const MainListScreen({super.key});
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+  }
 
-  @override
-  MainListScreenState createState() => MainListScreenState();
+  void _navigateToSignInPage(BuildContext context) {
+    Future.delayed(Duration.zero, () {
+      Navigator.pushReplacementNamed(context, '/login');
+    });
+  }
+
+  void _scheduleNotification(Exam exam) {
+    final int notificationId = exams.indexOf(exam);
+
+    AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: notificationId,
+        channelKey: "basic_channel",
+        title: exam.course,
+        body: "Imate Ispit ${formattedDateTime(exam.timestamp)}!",
+      ),
+      schedule: NotificationCalendar(
+        day: exam.timestamp.subtract(const Duration(days: 1)).day,
+        month: exam.timestamp.subtract(const Duration(days: 1)).month,
+        year: exam.timestamp.subtract(const Duration(days: 1)).year,
+        hour: exam.timestamp.subtract(const Duration(days: 1)).hour,
+        minute: exam.timestamp.subtract(const Duration(days: 1)).minute,
+      ),
+    );
+  }
 }
 
 class AuthScreenState extends State<AuthScreen> {
@@ -237,7 +319,7 @@ class AuthScreenState extends State<AuthScreen> {
           children: [
             TextFormField(
               controller: _emailController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Email",
                 border: OutlineInputBorder(),
                 fillColor: Colors.white,
@@ -248,7 +330,7 @@ class AuthScreenState extends State<AuthScreen> {
             TextFormField(
               controller: _passwordController,
               obscureText: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Password",
                 border: OutlineInputBorder(),
                 fillColor: Colors.white,
@@ -299,7 +381,7 @@ class AuthScreenState extends State<AuthScreen> {
 class AuthScreen extends StatefulWidget {
   final bool isLogin;
 
-  const AuthScreen({super.key, required this.isLogin});
+  const AuthScreen({Key? key, required this.isLogin});
 
   @override
   AuthScreenState createState() => AuthScreenState();

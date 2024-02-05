@@ -1,0 +1,142 @@
+import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_calendar/calendar.dart';
+import 'exam.dart';
+
+class CalendarWidget extends StatelessWidget {
+  final List<Exam> exams;
+
+  const CalendarWidget({Key? key, required this.exams}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ispiti'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SfCalendar(
+          view: CalendarView.month,
+          dataSource: _getCalendarDataSource(),
+          onTap: (CalendarTapDetails details) {
+            if (details.targetElement == CalendarElement.calendarCell) {
+              _handleDateTap(context, details.date!);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  _DataSource _getCalendarDataSource() {
+    List<Appointment> appointments = [];
+
+    for (var exam in exams) {
+      appointments.add(Appointment(
+        startTime: exam.timestamp,
+        endTime: exam.timestamp.add(const Duration(hours: 2)),
+        subject: exam.course,
+      ));
+    }
+
+    return _DataSource(appointments);
+  }
+
+  void _handleDateTap(BuildContext context, DateTime selectedDate) {
+    List<Exam> selectedExams = exams
+        .where((exam) =>
+            exam.timestamp.year == selectedDate.year &&
+            exam.timestamp.month == selectedDate.month &&
+            exam.timestamp.day == selectedDate.day)
+        .toList();
+
+    if (selectedExams.isNotEmpty) {
+      _showExamsDialog(context, selectedDate, selectedExams);
+    }
+  }
+
+  void _showExamsDialog(
+      BuildContext context, DateTime selectedDate, List<Exam> exams) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: contentBox(context, selectedDate, exams),
+        );
+      },
+    );
+  }
+
+  contentBox(BuildContext context, DateTime selectedDate, List<Exam> exams) {
+    return Stack(
+      children: <Widget>[
+        Container(
+          padding: EdgeInsets.only(
+            left: 16,
+            top: 16,
+            right: 16,
+            bottom: 16,
+          ),
+          margin: EdgeInsets.only(top: 16),
+          decoration: BoxDecoration(
+            shape: BoxShape.rectangle,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black,
+                offset: Offset(0, 10),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                'Exams on ${selectedDate.toLocal()}',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+              ),
+              SizedBox(height: 16),
+              Column(
+                children: exams
+                    .map((exam) => Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            '${exam.course} - ${exam.timestamp.hour}:${exam.timestamp.minute}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              SizedBox(height: 16),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DataSource extends CalendarDataSource {
+  _DataSource(List<Appointment> source) {
+    appointments = source;
+  }
+}
