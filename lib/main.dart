@@ -1,39 +1,33 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'calendar_widget';
-import 'exam_widget.dart';
+import 'package:exam_planner/calendar_widget';
+import 'package:exam_planner/exam_widget.dart';
+import 'package:intl/intl.dart';
+import 'package:exam_planner/map_widget.dart';
+import 'exam.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'exam.dart';
 import 'notification_controller.dart';
-import 'package:intl/intl.dart';
+import 'notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await AwesomeNotifications().initialize(
-    null,
-    [
-      NotificationChannel(
-        channelGroupKey: "basic_channel_group",
-        channelKey: "basic_channel",
-        channelName: "basic_notif",
-        channelDescription: "basic notification channel",
-      )
-    ],
-    channelGroups: [
-      NotificationChannelGroup(
-        channelGroupKey: "basic_channel_group",
-        channelGroupName: "basic_group",
-      )
-    ],
-  );
 
-  bool isAllowedToSendNotification =
-      await AwesomeNotifications().isNotificationAllowed();
+  await AwesomeNotifications().initialize(null, [
+    NotificationChannel(
+      channelGroupKey: "basic_channel_group",
+      channelKey: "basic_channel",
+      channelName: "basic_notif",
+      channelDescription: "basic notification channel",
+    )
+  ], channelGroups: [
+    NotificationChannelGroup(
+        channelGroupKey: "basic_channel_group", channelGroupName: "basic_group")
+  ]);
 
-  if (!isAllowedToSendNotification) {
+  if (!(await AwesomeNotifications().isNotificationAllowed())) {
     AwesomeNotifications().requestPermissionToSendNotifications();
   }
 
@@ -41,7 +35,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +51,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MainListScreen extends StatefulWidget {
-  const MainListScreen({Key? key});
+  const MainListScreen({super.key});
 
   @override
   MainListScreenState createState() => MainListScreenState();
@@ -71,25 +65,22 @@ class MainListScreenState extends State<MainListScreen> {
     Exam(course: 'DS', timestamp: DateTime(2024, 02, 09, 18, 15)),
   ];
 
+  bool _isLocationBasedNotificationsEnabled = false;
+
   @override
   void initState() {
     super.initState();
-    AwesomeNotifications().setListeners(
-      onActionReceivedMethod: NotificationController.onActionReceiveMethod,
-      onDismissActionReceivedMethod:
-          NotificationController.onDismissActionReceiveMethod,
-      onNotificationCreatedMethod:
-          NotificationController.onNotificationCreateMethod,
-      onNotificationDisplayedMethod:
-          NotificationController.onNotificationDisplayed,
-    );
-    _scheduleNotificationsForExistingExams();
-  }
 
-  void _scheduleNotificationsForExistingExams() {
-    for (int i = 0; i < exams.length; i++) {
-      _scheduleNotification(exams[i]);
-    }
+    AwesomeNotifications().setListeners(
+        onActionReceivedMethod: NotificationController.onActionReceiveMethod,
+        onDismissActionReceivedMethod:
+            NotificationController.onDismissActionReceiveMethod,
+        onNotificationCreatedMethod:
+            NotificationController.onNotificationCreateMethod,
+        onNotificationDisplayedMethod:
+            NotificationController.onNotificationDisplayed);
+
+    NotificationService().scheduleNotificationsForExistingExams(exams);
   }
 
   @override
@@ -100,18 +91,46 @@ class MainListScreenState extends State<MainListScreen> {
         title: const Text('Ispiti'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_month),
-            onPressed: _openCalendar,
+            onPressed: _openMap,
+            icon: const Icon(
+              Icons.map_outlined,
+              size: 28,
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.add),
+            onPressed: _openCalendar,
+            icon: const Icon(
+              Icons.calendar_today_outlined,
+              size: 28,
+            ),
+          ),
+          IconButton(
+            onPressed: _toggleLocationNotifications,
+            icon: Icon(
+              _isLocationBasedNotificationsEnabled
+                  ? Icons.alarm_on_outlined
+                  : Icons.alarm_add_outlined,
+              size: 28,
+              color: _isLocationBasedNotificationsEnabled
+                  ? Colors.red
+                  : Colors.green,
+            ),
+          ),
+          IconButton(
             onPressed: () => FirebaseAuth.instance.currentUser != null
                 ? _addExamFunction(context)
                 : _navigateToSignInPage(context),
+            icon: const Icon(
+              Icons.add_circle_outline,
+              size: 28,
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.login),
             onPressed: _signOut,
+            icon: const Icon(
+              Icons.logout,
+              size: 28,
+            ),
           ),
         ],
       ),
@@ -169,6 +188,34 @@ class MainListScreenState extends State<MainListScreen> {
     return DateFormat.yMMMd().add_Hm().format(timestamp);
   }
 
+  void _toggleLocationNotifications() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Lokaciski bazirani notifikacii"),
+          content: _isLocationBasedNotificationsEnabled
+              ? const Text("Gi isklucivte lokacisko baziranite notifikacii")
+              : const Text("Gi vklucivte lokacisko baziranite notifikacii"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                NotificationService().toggleLocationNotification();
+                setState(() {
+                  _isLocationBasedNotificationsEnabled =
+                      !_isLocationBasedNotificationsEnabled;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("OK"),
+            )
+          ],
+        );
+      },
+    );
+  }
+
   void _openCalendar() {
     Navigator.push(
       context,
@@ -178,25 +225,29 @@ class MainListScreenState extends State<MainListScreen> {
     );
   }
 
+  void _openMap() {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (context) => const MapWidget()));
+  }
+
   Future<void> _addExamFunction(BuildContext context) async {
     return showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return GestureDetector(
-          onTap: () {},
-          behavior: HitTestBehavior.opaque,
-          child: ExamWidget(
-            addExam: _addExam,
-          ),
-        );
-      },
-    );
+        context: context,
+        builder: (_) {
+          return GestureDetector(
+            onTap: () {},
+            behavior: HitTestBehavior.opaque,
+            child: ExamWidget(
+              addExam: _addExam,
+            ),
+          );
+        });
   }
 
   void _addExam(Exam exam) {
     setState(() {
       exams.add(exam);
-      _scheduleNotification(exam);
+      NotificationService().scheduleNotification(exam);
     });
   }
 
@@ -208,26 +259,6 @@ class MainListScreenState extends State<MainListScreen> {
     Future.delayed(Duration.zero, () {
       Navigator.pushReplacementNamed(context, '/login');
     });
-  }
-
-  void _scheduleNotification(Exam exam) {
-    final int notificationId = exams.indexOf(exam);
-
-    AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: notificationId,
-        channelKey: "basic_channel",
-        title: exam.course,
-        body: "Imate Ispit ${formattedDateTime(exam.timestamp)}!",
-      ),
-      schedule: NotificationCalendar(
-        day: exam.timestamp.subtract(const Duration(days: 1)).day,
-        month: exam.timestamp.subtract(const Duration(days: 1)).month,
-        year: exam.timestamp.subtract(const Duration(days: 1)).year,
-        hour: exam.timestamp.subtract(const Duration(days: 1)).hour,
-        minute: exam.timestamp.subtract(const Duration(days: 1)).minute,
-      ),
-    );
   }
 }
 
@@ -343,7 +374,10 @@ class AuthScreenState extends State<AuthScreen> {
               style: ElevatedButton.styleFrom(
                 primary: Colors.green,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
                 ),
                 padding:
                     const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
@@ -381,7 +415,7 @@ class AuthScreenState extends State<AuthScreen> {
 class AuthScreen extends StatefulWidget {
   final bool isLogin;
 
-  const AuthScreen({Key? key, required this.isLogin});
+  const AuthScreen({super.key, required this.isLogin});
 
   @override
   AuthScreenState createState() => AuthScreenState();

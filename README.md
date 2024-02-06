@@ -35,3 +35,12 @@ LAB 4 Delot dodaden kalendar so schedules i dodadeni notifikacii
 ![alt text](image-6.png)
 
 ![alt text](image-7.png)
+
+
+LAB 5 
+Rutiranje so pomosh na Google Maps direktno se prezema lokacijata na fakultetot vo end destination
+![alt text](image-8.png)
+
+Lokacijata na fakultetot
+
+![alt text](image-9.png)
