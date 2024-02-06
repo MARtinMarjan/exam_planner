@@ -44,3 +44,12 @@ Rutiranje so pomosh na Google Maps direktno se prezema lokacijata na fakultetot 
 Lokacijata na fakultetot
 
 ![alt text](image-9.png)
+
+
+
+Lokaciski bazirani servisi
+![image](https://github.com/MARtinMarjan/exam_planner/assets/100298572/2ca222aa-f19c-4c2b-99b4-a13b95148dc3)
+
+
+![image](https://github.com/MARtinMarjan/exam_planner/assets/100298572/ee38ed0a-f843-4b77-bda5-bc42bc1d668e)
+
