@@ -37,6 +37,10 @@ LAB 4 Delot dodaden kalendar so schedules i dodadeni notifikacii
 ![alt text](image-7.png)
 
 
+![image](https://github.com/MARtinMarjan/exam_planner/assets/100298572/b62a370d-11ea-4aba-a33e-21291b563807)
+
+
+
 LAB 5 
 Rutiranje so pomosh na Google Maps direktno se prezema lokacijata na fakultetot vo end destination
 ![alt text](image-8.png)
